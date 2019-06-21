@@ -1,0 +1,7 @@
+# partition table of /dev/sda
+unit: sectors
+
+/dev/sda1 : start=     2048, size=  1048576, Id=83, bootable
+/dev/sda2 : start=  1050624, size=136314880, Id=8e
+/dev/sda3 : start=137365504, size= 51378176, Id=8e
+/dev/sda4 : start=        0, size=        0, Id= 0
