@@ -1,0 +1,14 @@
+language: generic
+
+sudo: required
+
+addons:
+  yum:
+    packages:
+      - gzip
+      - dump
+      - perl
+      - zip
+      
+after_success: |
+  bash <(curl -s https://codecov.io/bash)
