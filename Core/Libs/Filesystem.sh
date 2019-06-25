@@ -30,7 +30,7 @@ function migratevg()
             if [ -n "${fs}" ]
             then
                 ${MKDIR} -p "${Copyworkspace}${fs}"
-                fstype=$(${BLKID} "/dev/mapper/${altvg}-${i}" | ${SED} -re 's/.*TYPE="(.*)"/\1/'| ${SED} 's/\s//g')
+                fstype=$(getFSType "/dev/mapper/${altvg}-${i}")
                 if [ "${fstype}" != "swap" ]
                 then
                         writeLog "Copie du volume logique: ${i}" "info"
@@ -51,12 +51,10 @@ function cleanupFilesystem(){
         local altinfrapv="$5"
         local infravg="$6"
         local altinfravg="$7"
-        local lockfile="$8" 
         local rootpvsize=$(getVGTotalPVSizeMB "${rootvg}")
         local altrootpvsize=$(getPVSizeMB "${altrootpv}")
         local infrapvsize=$(getVGTotalPVSizeMB "${infravg}")
         local altinfrapvsize=$(getPVSizeMB "${altinfrapv}")
-        [[ -f "${lockfile}" ]] && return 0
         if numberCompare "${rootpvsize}" ">" "${altrootpvsize}"; then
             writeLog "Erreur : le pvsize du FS de destination (${altrootpv} : ${altrootpvsize}) est inférieur à celle de la source (${rootpv} : ${rootpvsize}) !"
         fi
@@ -83,7 +81,7 @@ function cleanupFilesystem(){
                 writeLog "Ne comprend pas le retour ${i} du lvs"
             fi
             ${LVCREATE} -Wy --yes -L "${lvsize}" -n "${lvname}" "${altrootvg}" > /dev/null || writeLog "Erreur au lvcreate -L ${lvsize} -n ${lvname} ${altrootvg} : $?"
-            fstype=$(${BLKID} /dev/mapper/${rootvg}-${lvname} | ${SED} -re 's/.*TYPE="(.*)".*/\1/'| ${SED} 's/\s//g')
+            fstype=$(getFSType "/dev/mapper/${rootvg}-${lvname}")
             if [ "${fstype}" != "swap" ]
             then
                 ${MKFS}.${fstype} -q "/dev/${altrootvg}/${lvname}" || writeLog "Erreur au ${MKFS}.${fstype} /dev/${altrootvg}/${lvname} : $?"
@@ -102,7 +100,7 @@ function cleanupFilesystem(){
                 writeLog "Ne comprend pas le retour ${i} du lvs"
             fi
             ${LVCREATE} -Wy --yes -L "${lvsize}" -n "${lvname}" "${altinfravg}" > /dev/null || writeLog "Erreur au lvcreate -L ${lvsize} -n ${lvname} ${altinfravg} : $?"
-            fstype=$(${BLKID} /dev/mapper/${infravg}-${lvname} | ${SED} -re 's/.*TYPE="(.*)".*/\1/'| ${SED} 's/\s//g')
+            fstype=$(getFSType "/dev/mapper/${infravg}-${lvname}")
             if [ "${fstype}" != "swap" ]
             then
                 ${MKFS}.${fstype} -q "/dev/${altinfravg}/${lvname}" || writeLog "Erreur au ${MKFS}.${fstype} /dev/${altinfravg}/${lvname} : $?"
@@ -143,4 +141,16 @@ function getNextPV(){
     fi
     local nextpartid=$(( currentpvid + 1 ))
     printf '%s' "${currentpvprefix}${nextpartid}"
-}  
+} 
+
+function getFSType(){
+    local block="$1"
+    local stdcheck=$(${LS} /dev/sd* |${GREP} -w "${block}")
+    if [ -z "${stdcheck}" ]
+    then
+        local lvmcheck=$(${LS} /dev/mapper/* |${GREP} -w "${block}")
+        [ -z "${lvmcheck}" ] && writeLog "Le Filesystem ${block} est introuvable sur ce serveur";
+    fi
+    local fstype=$(${BLKID} -s TYPE -o value "${block}")
+    ${ECHO} "${fstype}"
+} 

@@ -10,7 +10,7 @@ menuentry 'Red Hat Enterprise Linux Server RELEASEVERSION (BOOTALT)' --class red
         else
           search --no-floppy --fs-uuid --set=root BOOTALTBLKID
         fi
-        linux16 /vmlinuz-KERNELVERSION root=/dev/mapper/rootvg_alt-root_lv ro transparent_hugepage=never ipv6.disable=1 scsi_mod.max_luns=65535 scsi_mod.max_report_luns=65535 rd_NO_PLYMOUTH mce=dont_log_ce crashkernel=auto rd.lvm.lv=rootvg_alt/root_lv biosdevname=0 rd.shell=0 quiet 
+        linux16 /vmlinuz-KERNELVERSION root=/dev/mapper/rootvg_alt-root_lv ro transparent_hugepage=never ipv6.disable=1 scsi_mod.max_luns=65535 scsi_mod.max_report_luns=65535 rd_NO_PLYMOUTH mce=dont_log_ce crashkernel=auto rd.lvm.lv=rootvg_alt/root_lv biosdevname=0 rd.shell=0 
         initrd16 /initramfs-KERNELVERSION.BOOTALT.img
 }
 

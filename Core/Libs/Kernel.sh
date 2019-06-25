@@ -16,45 +16,6 @@
 #-------------------------------------------------------------------
 #               DECLARATION DES FONCTIONS
 #--------------------------------------------------------------------
-
-#
-# cree_initrd_alt
-#
-#Cree une version alternee du initrd pour booter sur rootvg_alt
-#
-#Arguments :
-# $1=nom du VG source
-# $2=nom du VG dest
-
-function custmkinitrd() {
-        local sourcevg=$1
-        local destvg=$2
-        local initworkspace=$3
-        local osversion=$(getRedhatVersion)
-        writeLog "Creation d'une image du noyau Linux pour le boot alterné" "info"
-        ${RM} -rf "${initworkspace}"
-        ${MKDIR} -p "${initworkspace}"
-        cd "${initworkspace}"
-        case "${osversion}" in
-
-          3|4|5)    ${GZIP} -cd /boot/initrd-$(${UNAME} -r).img | ${CPIO} -imd --quiet
-                ${CAT} init | ${SED} -re "s/${sourcevg}/${destvg}/g" > /tmp/init
-                ${CP} /tmp/init .
-                ${FIND} . | ${CPIO} --quiet -H newc -o | ${GZIP} -9 -n > /boot/initrd-$(${UNAME} -r).BOOTALT.img
-                ;;
-          *)    ${GZIP} -cd /boot/initramfs-$(${UNAME} -r).img | ${CPIO} -imd --quiet
-                ${CAT} init | ${SED} -re "s/${sourcevg}/${destvg}/g" > /tmp/init
-                ${CP} /tmp/init .
-                ${FIND} . | ${CPIO} --quiet -H newc -o | ${GZIP} -9 -n > /boot/initramfs-$(${UNAME} -r).BOOTALT.img
-                ;;
-        esac
-
-        writeLog "Fin de Creation d'une image du noyau Linux" "info"
-}
-
-#
-#
-#grub-install --recheck --root-directory=/alt $ALT_DISK
 #Arguments :
 # $1=nom du dev boot dest
 # $2=nom du dev grub
@@ -63,10 +24,9 @@ function migrateboot() {
     local altbootdev=$(${READLINK} -f $1)
     local altdevname=$2
     local bootwspace="$3"    
-    local sbootfstype=$(fsck -N /boot | awk '/\//{found=1};found{print $5}'|awk -F. '{print $2}')
+    local sbootfstype=$(getFSType "${altbootdev}")
     local osversion=$(getRedhatVersion)
     writeLog "Configuration du secteur de boot sur le disque de boot alterné" "info"
-    ${MKFS}.${sbootfstype} -q "${altbootdev}" ||  writeLog "Incident inattendu lors du formatage de la partition ${altbootdev} :$?"
     ${MKDIR} -p ${bootwspace}
     ${MOUNT} -t ${sbootfstype} "${altbootdev}"  ${bootwspace} || writeLog "impossible de monter la partition ${altbootdev} :$?"
     cd ${bootwspace} && ${DUMP} -f - /boot | ${RESTORE} -r -f - || writeLog "echec de copie du /boot: $?"
@@ -74,10 +34,9 @@ function migrateboot() {
       3|4|5|6)    devicemap="${bootwspace}/grub/device.map" ; grubconfig="${bootwspace}/grub/grub.cfg" ;;
       *)  devicemap="${bootwspace}/grub2/device.map" ; grubconfig="${bootwspace}/grub2/grub.cfg" ;;   
     esac
-    #updateDevicemap "${devicemap}"
     permuteGrubMenuEntry "${grubconfig}"
     writeLog "Mise à jour du grub du disque de boot alterné" "info"
-    ${GRUBINSTALL} --no-floppy --recheck --root-directory=$(${DIRNAME} "${bootwspace}") ${altdevname} > /dev/null || writeLog "Echec de la mise à jour du GRUB: $?"
+    ${GRUBINSTALL} --no-floppy --recheck ${altdevname} > /dev/null || writeLog "Echec de la mise à jour du GRUB: $?"
     ${WAIT}
    cd ~/ &&  ${UMOUNT}  ${bootwspace} || writeLog "impossible de demonter la partition ${altbootdev} :$?"
     writeLog "Configuration du secteur de boot terminé  ................  OK" "info"
@@ -152,4 +111,13 @@ function getCustGrubMenuFile(){
     esac
      [ -f "${grubcfgfile}" ] || writeLog "Le fichier contenant le menuentry personnalisé du grub est introuvable"
     ${ECHO} "${grubcfgfile}"
+}
+
+function makeAltBootFS(){
+    local altbootdev="$1"
+    local sbootfstype=$(fsck -N /boot | awk '/\//{found=1};found{print $5}'|awk -F. '{print $2}')
+    local stdcheck=$(${LS} /dev/sd* |${GREP} -w "${altbootdev}")
+    [ -z "${stdcheck}" ] && writeLog "La Partition ${altbootdev} est introuvable sur ce serveur :$?";
+    writeLog "Formatage de la partition ${altbootdev}" "info"
+    ${MKFS}.${sbootfstype} -q "${altbootdev}" ||  writeLog "Incident inattendu lors du formatage de la partition ${altbootdev} :$?"
 }

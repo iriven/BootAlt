@@ -65,10 +65,10 @@ function BootAltInitialize(){
   local osrelease=$(getRedhatRelease)
   local tplfile=$(getTemplateFile "${tplpath}")
   local grubcfgfile=$(getGrubConfigFile)
-  local padlock="${initworkspace}/tmp/BOOTALT.lock"
   local args=$#
   [[ "${args}" -ne 13 ]]   && writeLog "BootAltInitialize a besoin de 13 arguments ";
   [[ "${osversion}" -lt 5 ]]   && writeLog "Version OS non pris en chage: ${osversion}";
+
   writeLog "Creation du boot alterne" "info"
   ${MKDIR} -p ${initworkspace}/{boot,root,tmp}
   isparted=$(DiskIsPArted "${altrootpv}")
@@ -85,31 +85,28 @@ function BootAltInitialize(){
     ${VGCREATE} "${altrootvg}" "${altrootpv}" > /dev/null || writeLog "Initialize - Erreur lors de la creation du VG ${altrootvg} : $?"
     ${VGCREATE} "${altinfravg}" "${altinfrapv}" > /dev/null || writeLog "Initialize - Erreur lors de la creation du VG ${altinfravg} : $?"
     ${SYNC};${SYNC};${SYNC}
-    cleanupFilesystem "${rootpv}" "${altrootpv}" "${rootvg}" "${altrootvg}" "${altinfrapv}" "${infravg}" "${altinfravg}" "${padlock}"
-    [[ ! -f "${padlock}" ]] && touch "${padlock}"
   fi
+  makeAltBootFS "${altbootdev}"
+  cleanupFilesystem "${rootpv}" "${altrootpv}" "${rootvg}" "${altrootvg}" "${altinfrapv}" "${infravg}" "${altinfravg}"
   if [ -f "${tplfile}" ]
   then
     osplateform=$(${UNAME} -r)
-    altBootblkid=$(${BLKID} "${altbootdev}" | ${AWK} -F\" '{print $2}')
-    altRootblkid=$(${BLKID} "/dev/mapper/${altrootvg}-${rootlv}" | ${AWK} -F\" '{print $2}')
-    isOk=$(${CAT} "${grubcfgfile}"| ${GREP} "BOOTALT" )
-    if [ -z "${isOk}" ] 
-    then
+    altBootblkid=$(getBlockId "${altbootdev}")
+    altRootblkid=$(getBlockId "/dev/mapper/${altrootvg}-${rootlv}")
+    removeTextBetweenMarkers "menuentry" "}" "${grubcfgfile}"
       writeLog "Verification et ajout d'une entrée BOOTALT dans le Grub Menu" "info"
-      ${SED} -e "s/KERNELVERSION/${osplateform}/" "${tplfile}"  >> "${grubcfgfile}"
+      ${SED} -e "s/KERNELVERSION/${osplateform}/" "${tplfile}" >> "${grubcfgfile}"
       ${SED} -i "s/BOOTALTBLKID/${altBootblkid}/" "${grubcfgfile}"
       ${SED} -i "s/ROOTALTBLKID/${altRootblkid}/" "${grubcfgfile}"
       ${SED} -i "s/RELEASEVERSION/${osrelease}/" "${grubcfgfile}"
+      ${SED} -i '/^$/d' "${grubcfgfile}"
+      ${CHMOD} +x "${grubcfgfile}"
       ${RM} -f $(${DIRNAME} "${grubcfgfile}")/{20_*,30_*}
       ${SED} -i -e "s/^GRUB_TIMEOUT=.*//g" /etc/default/grub
       ${ECHO} "GRUB_TIMEOUT=10" >> /etc/default/grub
       ${GRUBMKCONFIG} -o /boot/grub2/grub.cfg
       ${SYNC};${SYNC};${SYNC}
-    fi
   fi
-  cleanupFilesystem "${rootpv}" "${altrootpv}" "${rootvg}" "${altrootvg}" "${altinfrapv}" "${infravg}" "${altinfravg}" "${padlock}"
-  [[ -f "${padlock}" ]] && ${RM} -f "${padlock}"
 }
 
 function BootAltExecute(){
@@ -140,9 +137,9 @@ function BootAltClose(){
     local rootvg=$7
     local bootwspace="${Closeworkspace}/boot"
     local rootwspace="${Closeworkspace}/root"
-    local sbootfstype=$(${FSCK} -N /boot | ${AWK} '/\//{found=1};found{print $5}'|${AWK} -F. '{print $2}') 
-    local altrootfstype=$(${BLKID} "/dev/mapper/${altrootvg}-${altrootlv}" | ${SED} -re 's/.*TYPE="(.*)"/\1/')
-    local altbootuuid=$(${BLKID} ${altbootdev}|${AWK} -F\" '{print $2}')
+    local sbootfstype=$(getFSType "${altbootdev}")
+    local altrootfstype=$(getFSType "/dev/mapper/${altrootvg}-${altrootlv}")
+    local altbootuuid=$(getBlockId "${altbootdev}")  
     local osversion=$(getRedhatVersion)
     local args=$#
     [[ "${args}" -ne 7 ]]   && writeLog "BootAltClose a besoin de 7 arguments";   

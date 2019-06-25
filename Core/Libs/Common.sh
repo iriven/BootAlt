@@ -89,20 +89,6 @@ function numberCompare(){
    return $stat
 }
 
-# Evaluate a floating point number conditional expression.
-
-function floatCond()
-{
-    local cond=0
-    if [[ $# -gt 0 ]]; then
-        cond=$(echo "$*" | bc -q 2>/dev/null)
-        if [[ -z "$cond" ]]; then cond=0; fi
-        if [[ "$cond" != 0  &&  "$cond" != 1 ]]; then cond=0; fi
-    fi
-    local stat=$((cond == 0))
-    return $stat
-}
-
 function trim() {
     local var="$*"
     # remove leading whitespace characters
@@ -119,3 +105,20 @@ function isNumeric() {
     *) return 0;;
     esac          
   }
+
+function removeTextBetweenMarkers() {
+    local start="$1"
+    local end="$2"
+    local filepath="$3"   
+    local cachefile="/tmp/textreplace.txt"
+    [ -f "${filepath}" ] || writeLog "Le fichier de Configuration du grub est introuvable"
+    startingLine=$(${GREP} -n "${start}" ${filepath}| ${SED} 's/\(.*\):.*/\1/g')
+    endingLine=$(${GREP} -n "${end}" ${filepath} | ${SED} 's/\(.*\):.*/\1/g')
+    if [ "${startingLine}" -lt "${endingLine}" ] 
+    then
+        ${ECHO} "" > ${cachefile}
+        ${CAT} <(${HEAD} -n $(${EXPR} $startingLine - 1) ${filepath}) ${cachefile} <(${TAIL} -n +$(${EXPR} $endingLine + 1) ${filepath}) >temp
+        ${MV} temp ${filepath}
+        ${RM} -f ${cachefile}
+    fi
+}

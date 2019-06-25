@@ -34,8 +34,8 @@ function clonePartitiontable(){
 function dumpdiskpartitiontable(){
     local disk=$1
     local savepath=$2
-    local diskexists=$(${BLKID} "${disk}")
-    [[ -z "${diskexists}" ]]  && writeLog "Le Disque ${disk} est introuvable sur ce serveur";
+#    local diskexists=$(${PVS} |${GREP} -w "${disk}")
+ #   [[ -z "${diskexists}" ]]  && writeLog "Le Disque ${disk} est introuvable sur ce serveur";
     local firstpart=$(getNextPV "${disk}")
     local firstpartexists=$(${BLKID} "${firstpart}")
     [[ -z "${firstpartexists}" ]]  && writeLog "Aucune table de partition trouvée sur la Disque ${disk}";
@@ -44,28 +44,17 @@ function dumpdiskpartitiontable(){
 }
 
 function restorediskpartitiontable(){
-    local disk=$1
-    local partitiontable=$2
-    local diskexists=$(${BLKID} "${disk}")
+    local disk="$1"
+    local partitiontable="$2"
+    local diskexists=$(${LS} /dev/sd* |${GREP} -w "${disk}")
     [[ -z "${diskexists}" ]]  && writeLog "Le Disque ${disk} est introuvable sur ce serveur";
     [[ ! -f "${partitiontable}" ]] && writeLog "Aucune sauvegarde de la table de partition du Disque  de Boot Alterné n'a été trouvée";
     writeLog "Creation des partitions du Disque de Boot Alterné" "info";
     ${SFDISK} -f ${disk} < ${partitiontable}
     ${SLEEP} 1;
     ${SYNC};${SYNC};${SYNC}
-    partprobe 
+    partprobe "${disk}" 
     writeLog "Creation des partitions terminée" "info";
-}
-
-function getDeviceAbsoluteName()
-{
-    local devpath=$1
-    local pcidevname=$(basename ${devpath})
-    local pathdir=$(dirname ${devpath})
-    local devname=$(${LS} ${pathdir}|${GREP} -i "${pcidevname} "| ${AWK} -F"/" '{print $NF;}')
-    [[ -z "${devname}" ]]  && writeLog "Le Disque de destination ${devpath} est introuvable";
-    ${ECHO} "/dev/${devname}"
-    # pci-0000:00:03.2-usb-0:4.1.1:1.0-scsi-0:0:0:0 -> ../../sd
 }
 
 function DiskIsPArted()
@@ -75,3 +64,14 @@ function DiskIsPArted()
     ${ECHO}  ${pvexists}
 }
 
+function getBlockId(){
+    local block="$1"
+    local stdcheck=$(${LS} /dev/sd* |${GREP} -w "${block}")
+    if [ -z "${stdcheck}" ]
+    then
+        local lvmcheck=$(${LS} /dev/mapper/* |${GREP} -w "${block}")
+        [ -z "${lvmcheck}" ] && writeLog "La Partition ${block} est introuvable sur ce serveur";
+    fi 
+    local blockid=$(${BLKID} -s UUID -o value "${block}")
+    ${ECHO} "${blockid}"
+}
