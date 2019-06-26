@@ -2,7 +2,6 @@ checks:
   bash: 
     code_rating: true
       duplicate_code: true
-
 build:
   nodes:
     analysis:
