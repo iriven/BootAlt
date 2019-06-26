@@ -1,5 +1,5 @@
 checks:
-  bash: 
+  shell: 
     code_rating: true
 build:
   nodes:
