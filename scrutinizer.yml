@@ -1,7 +1,7 @@
 checks:
- bash: 
-   code_rating: true
-     duplicate_code: true
+  bash: 
+    code_rating: true
+      duplicate_code: true
 
 build:
   nodes:
