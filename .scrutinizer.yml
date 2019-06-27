@@ -1,9 +1,7 @@
-checks:
-  shell: 
-    code_rating: true
 build:
   nodes:
     analysis:
       tests:
         override:
-          -
+          - cd Core/
+          - shellcheck-run
