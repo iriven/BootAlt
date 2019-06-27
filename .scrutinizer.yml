@@ -3,6 +3,5 @@ build:
     node-with-auto-setup:
       tests:
         override:
-          - cd Core/
-          - shellcheck-run
+          - command: echo "BootAlt"
             idle_timeout: 300
