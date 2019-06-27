@@ -1,7 +1,7 @@
 build:
   nodes:
-    node-with-auto-setup:
-      analysis:
+    analysis:
+      node-with-auto-setup:
         tests:
           override:
             - cd Core/
