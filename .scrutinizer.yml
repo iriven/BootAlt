@@ -1,9 +1,8 @@
 build:
   nodes:
-    analysis:
-      node-with-auto-setup:
-        tests:
-          override:
-            - cd Core/
-            - shellcheck-run
-              idle_timeout: 300
+    node-with-auto-setup:
+      tests:
+        override:
+          - cd Core/
+          - shellcheck-run
+            idle_timeout: 300
