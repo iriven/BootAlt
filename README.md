@@ -2,6 +2,7 @@
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=XDCFPNTKUC4TU)
 [![Build Status](https://travis-ci.org/iriven/BootAlt.svg?branch=master)](https://travis-ci.org/iriven/BootAlt)
+[![GitHub license](https://img.shields.io/badge/license-AGPL-blue.svg)](https://github.com/iriven/BootAlt/blob/master/LICENSE)
 [![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/iriven/BootAlt/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/iriven/BootAlt/?branch=master)
 [![Code Intelligence Status](https://scrutinizer-ci.com/g/iriven/BootAlt/badges/code-intelligence.svg?b=master)](https://scrutinizer-ci.com/code-intelligence)
 
