@@ -2,14 +2,16 @@
 # Header_start
 #################################################################################
 #                                                                               #
-#       Script de creation de Boot Alterné sur des serveurs redhat              #
+#       Fichier de Configuration du Script de creation du boot alterné        #
 # ----------------------------------------------------------------------------- #
 #       Author: Alfred TCHONDJO - Iriven France                                 #
-#       Date: 2019-05-02                                                        #
+#       Date: 2018-05-14                                                        #
 # ----------------------------------------------------------------------------- #
 #       Revisions                                                               #
 #                                                                               #
-#       G1R0C0 :        Creation du script le 02/05/2019 (AT)                   #
+#       G1R0C0 :        Creation du script le 14/05/2019 (AT)                   #
+#       G1R0C1 :        Update - détection auto des FS le 30/09/2019 (AT)       #
+#                                                                               #
 #################################################################################
 # Header_end
 # set -x
@@ -44,17 +46,16 @@ function ValidateConfigSyntax()
    fi
 }
 
-function getRedhatVersion()
+function getOSVersion()
 {
-  #${PERL} -pe 's/(.*release.*)\s(\d).+/$2/' /etc/redhat-release
-  awk '{ match($0, /([0-9]+)/, arr); if(arr[1] != "") print arr[1] }' < /etc/redhat-release
+  local OSVersion=$(cat /etc/*-release | sed 's/\"//g' | awk -F= '/^VERSION=/ { print $NF;}'|awk '{ print $1;}'| awk -F. '{ print $1;}')
+  ${ECHO} "${OSVersion}"
 }
 
-function getRedhatRelease()
+function getOSRelease()
 {
-  
-  awk '{ match($0, /([0-9]+.[0-9]+)/, arr); if(arr[1] != "") print arr[1] }' < /etc/redhat-release
-  #${PERL} -pe 's/(.*release.*)\s(\d.\d).+/$2/' /etc/redhat-release
+  local OSRelease=$(cat /etc/*-release | awk '{ match($0, /([0-9]+.[0-9]+)/, arr); if(arr[1] != "") print arr[1] }'|head -n 1)
+  ${ECHO} "${OSRelease}"
 }
 
 function writeLog(){
@@ -121,4 +122,41 @@ function removeTextBetweenMarkers() {
         ${MV} temp ${filepath}
         ${RM} -f ${cachefile}
     fi
+}
+
+function alternateEntityName(){
+  local entityname="$1"
+  local suffix=${2:-_alt}
+  isAlternate "${entityname}" "${suffix}" && output=$(${ECHO} "${entityname}" | ${SED} -e "s/^\(.*\)${suffix}$/\1/") || output="${entityname}${suffix}"
+  ${ECHO} "${output}"
+}
+
+function isAlternate(){
+  local entityname="$1"
+  local suffix=${2:-_alt}
+  case "${entityname}" in
+    *${suffix}) return 0;;
+    *) return 1;;
+  esac
+}
+
+function getCurrentOSDevice(){
+    local rootFS=$(${DF} -P / | ${TAIL} -1 | ${AWK} '{ print $1 }' | ${SED} "s/\/dev\(\/[^\/]*\/*\)\([^-]*\)\([-\/]\)\([^-]*\)$/\/dev\/\\2\/\\4/")
+    ${DF} -P / | ${TAIL} -1 | ${AWK} '{ print $1 }' | ${GREP} "\/dev\(\/[^\/]*\/*\)\([^-]*\)\([-\/]\)\([^-]*\)$" >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        local rootvg=$(${DF} -P / | ${TAIL} -1 | ${AWK} '{ print $1 }' | ${SED} "s/\/dev\(\/[^\/]*\/*\)\([^-]*\)\([-\/]\)\([^-]*\)$/\\2/" )
+        rootFS=$(${PVS} 2>/dev/null| ${GREP} "[[:space:]]${rootvg}[[:space:]]" | ${AWK} '{ print $1 }')
+    fi
+    ${ECHO} ${rootFS} | ${GREP} -E 'c[[:digit:]]+d[[:digit:]]+p[[:digit:]]+|mpath.*p[[:digit:]]+' -q
+    if [ $? -eq 0 ]; then
+        local SystemDisk=$(${ECHO} ${rootFS} | ${SED} 's/p[[:digit:]]\+$//')
+    else
+        local SystemDisk=$(${ECHO} ${rootFS} | ${SED} 's/[[:digit:]]\+$//')
+    fi
+    ${ECHO} ${SystemDisk}
+}
+
+function humanReadableSize(){
+  local inputSize="${1}"
+  ${ECHO} ${inputSize}| ${AWK} '{ split( "KB MB GB" , v ); s=1; while( $1>1024 ){ $1/=1024; s++ } print int($1) v[s] }'
 }

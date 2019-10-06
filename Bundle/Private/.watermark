@@ -5,12 +5,14 @@ printf "\e[33m %s \n\e[0m" "
 #                                                                               #
 #       Script de creation de Boot Alterné sur des serveurs redhat              #
 # ----------------------------------------------------------------------------- #
-#       Author: Alfred TCHONDJO - Iriven France                                 #
+#       Author: Alfred TCHONDJO - Iriven France   Pour Orange                   #
 #       Date: 2019-05-29                                                        #
 # ----------------------------------------------------------------------------- #
 #       Revisions                                                               #
 #                                                                               #
 #       G1R0C0 :        Creation du script le 29/05/2019 (AT)                   #
+#       G1R0C1 :        Update - détection auto des FS le 30/09/2019 (AT)       #
+#                                                                               #
 #################################################################################
 "
 sleep 1

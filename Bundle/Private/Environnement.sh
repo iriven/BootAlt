@@ -2,14 +2,16 @@
 # Header_start
 #################################################################################
 #                                                                               #
-#       Script de creation de Boot Alterné sur des serveurs redhat              #
+#       Fichier de Configuration du Script de creation du boot alterné    		#
 # ----------------------------------------------------------------------------- #
 #       Author: Alfred TCHONDJO - Iriven France                                 #
-#       Date: 2019-05-02                                                        #
+#       Date: 2018-05-14                                                        #
 # ----------------------------------------------------------------------------- #
 #       Revisions                                                               #
 #                                                                               #
-#       G1R0C0 :        Creation du script le 02/05/2019 (AT)                   #
+#       G1R0C0 :        Creation du script le 14/05/2019 (AT)                   #
+#       G1R0C1 :        Update - détection auto des FS le 30/09/2019 (AT)       #
+#                                                                               #
 #################################################################################
 # Header_end
 # set -x
@@ -23,9 +25,12 @@ export BLKID=$(${WHICH} blkid)
 export CAT=$(${WHICH} cat)
 export CD=$(${WHICH} cd)
 export CHMOD=$(${WHICH} chmod)
+export CHROOT=$(${WHICH} chroot)
 export CP=$(${WHICH} cp)
 export CPIO=$(${WHICH} cpio)
+export CUT=$(${WHICH} cut)
 export DATE=$(${WHICH} date)
+export DF=$(${WHICH} df)
 export DIRNAME=$(${WHICH} dirname)
 export DUMP=$(${WHICH} dump)
 export ECHO=$(${WHICH} echo)
@@ -55,11 +60,12 @@ export PVS=$(${WHICH} pvs)
 export PWD=$(${WHICH} pwd)
 export READLINK=$(${WHICH} readlink)
 export RESTORE=$(${WHICH} restore)
-export RHMAJVER=$(getRedhatVersion)
+export RHMAJVER=$(getOSVersion)
 export RM=$(${WHICH} rm)
 export SED=$(${WHICH} sed)
 export SFDISK=$(${WHICH} sfdisk)
 export SLEEP=$(${WHICH} sleep)
+export SORT=$(${WHICH} sort)
 export SYNC=$(${WHICH} sync)
 export TAIL=$(${WHICH} tail)
 export TR=$(${WHICH} tr)
@@ -67,14 +73,26 @@ export UMOUNT=$(${WHICH} umount)
 export UNAME=$(${WHICH} uname)
 export VGCREATE=$(${WHICH} vgcreate)
 export VGDISPLAY=$(${WHICH} vgdisplay)
+export VGEXTEND=$(${WHICH} vgextend)
 export VGREMOVE=$(${WHICH} vgremove)
 export VGS=$(${WHICH} vgs)
-[ "${RHMAJVER}" -eq 5 ] && export EXTVER=3 || export EXTVER=4 ;
-[ "${RHMAJVER}" -eq 7 ] && export GRUBINSTALL=$(${WHICH} grub2-install) || export GRUBINSTALL=$(${WHICH} grub-install);
-[ "${RHMAJVER}" -eq 7 ] && export GRUBMKCONFIG=$(${WHICH} grub2-mkconfig) || export GRUBMKCONFIG=$(${WHICH} grub-mkconfig);
-if [ "${RHMAJVER}" -lt 5 ]
-then
-        printf " \e[31m %s \e[0m" `${DATE}` ": Ne peut pas determiner la version Red Hat courante"  1>&2
-        ${LOGGER} -p local7.err -t BootAlt "Ne peut pas determiner la version Red Hat courante"
-        exit 1 
-fi
+export WC=$(${WHICH} wc)
+case "${RHMAJVER}" in
+	3|4|5|6) 
+ 	export GRUBINSTALL=$(${WHICH} grub-install);
+ 	export GRUBMKCONFIG=$(${WHICH} grub-mkconfig);
+ 	export CONFGRUBFILE='/boot/grub/grub.conf'
+ 	export DEVMAPFILE='/boot/grub/device.map'
+ 	export LABELCMD=$(${WHICH} e2label)
+;;
+	*)
+	export GRUBINSTALL=$(${WHICH} grub2-install)
+	export GRUBMKCONFIG=$(${WHICH} grub2-mkconfig)
+	export CONFGRUBFILE='/boot/grub2/grub.cfg'
+	export DEVMAPFILE='/boot/grub2/device.map'
+	export LABELCMD="$(${WHICH} xfs_admin) -l"
+;;
+esac
+export FSTAB=/etc/fstab
+export PROG=$(${BASENAME} ${BOOTALT_CORE_FILE})
+export SCSIRESCAN="/usr/bin/rescan-scsi-bus.sh"
