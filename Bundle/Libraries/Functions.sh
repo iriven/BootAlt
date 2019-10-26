@@ -1,20 +1,46 @@
 #!/usr/bin/env bash
 # Header_start
-#################################################################################
-#                                                                               #
-#       Fichier de Configuration du Script de creation du boot alterné        #
-# ----------------------------------------------------------------------------- #
-#       Author: Alfred TCHONDJO - Iriven France                                 #
-#       Date: 2018-05-14                                                        #
-# ----------------------------------------------------------------------------- #
-#       Revisions                                                               #
-#                                                                               #
-#       G1R0C0 :        Creation du script le 14/05/2019 (AT)                   #
-#       G1R0C1 :        Update - détection auto des FS le 30/09/2019 (AT)       #
-#                                                                               #
-#################################################################################
+##############################################################################################
+#                                                                                            #
+#  Author:         Alfred TCHONDJO - Iriven France                                           #
+#  Date:           2019-05-14                                                                #
+#  Website:        https://github.com/iriven?tab=repositories                                #
+#                                                                                            #
+# ------------------------------------------------------------------------------------------ #
+#                                                                                            #
+#  Project:        Linux Alternate Boot (BOOTALT)                                            #
+#  Description:    An advanced tool to create alternate boot environment on Linux servers.   #
+#  Version:        1.0.1    (G1R0C1)                                                         #
+#                                                                                            #
+#  License:        GNU GPLv3                                                                 #
+#                                                                                            #
+#  This program is free software: you can redistribute it and/or modify                      #
+#  it under the terms of the GNU General Public License as published by                      #
+#  the Free Software Foundation, either version 3 of the License, or                         #
+#  (at your option) any later version.                                                       #
+#                                                                                            #
+#  This program is distributed in the hope that it will be useful,                           #
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of                            #
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                             #
+#  GNU General Public License for more details.                                              #
+#                                                                                            #
+#  You should have received a copy of the GNU General Public License                         #
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.                     #
+#                                                                                            #
+# ------------------------------------------------------------------------------------------ #
+#  Revisions                                                                                 #
+#                                                                                            #
+#  - G1R0C0 :        Creation du script le 14/05/2019 (AT)                                   #
+#  - G1R0C1 :        Update - détection auto des FS le 30/09/2019 (AT)                       #
+#                                                                                            #
+##############################################################################################
 # Header_end
 # set -x
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
+then
+  printf "\\n%s is a part of bash Linux Alternate Boot (BOOTALT) project. Dont execute it directly!\\n\\n" "${0##*/}"
+  exit 1
+fi
 #-------------------------------------------------------------------
 #               DECLARATION DES VARIABLES
 #-------------------------------------------------------------------
@@ -61,24 +87,11 @@ function BootAltInitialize(){
   local suffix=${5:-_alt}
   local args=$#
   [[ "${args}" -lt 4 ]]   && writeLog "BootAltInitialize a besoin de 5 arguments ";
-  local osversion=$(getOSVersion)
-  [[ "${osversion}" -lt 5 ]]   && writeLog "Version OS non pris en chage: ${osversion}";
-
-  if isAlternate "${srcdisk}"; then
-      local envtypemsg='alterné'; 
-      local envtypealtmsg='nominal'; 
-  else
-      local envtypemsg='nominal'; 
-      local envtypealtmsg='alterné';
-  fi
-  diskexists "${srcdisk}" || writeLog "Le nom disque systeme ${envtypemsg}: ${srcdisk} est incorrect: $?"
-  diskexists "${tgtdisk}" || writeLog "Le disque systeme ${envtypealtmsg}: ${tgtdisk} est introuvable: $?"
-
-  writeLog "Debut de Creation d'un environnement de boot alterne" "info"
-  checkPrerequisites "${srcdisk}" "${tgtdisk}" "${suffix}"
+  writeLog "DEBUT D'EXECUTION DU SCRIPT DE CREATION D'UN ENVIRONNEMENT DE BOOT ALTERNE" "info"
   ${MKDIR} -p ${initworkspace}
+  checkPrerequisites "${srcdisk}" "${tgtdisk}" "${suffix}"
   syncDeviceTopology "${srcdisk}" "${tgtdisk}" "${suffix}"
-
+  local osversion=$(getOSVersion)
   local osrelease=$(getOSRelease)  
   local tplfile=$(getTemplateFile "${tplpath}")
   local custcfgfile=$(getCustGrubConfigFile)
@@ -96,10 +109,13 @@ function BootAltInitialize(){
    local tgtBootblkid=$(getBlockId "${tgtBootFS}")
    local tgtRootblkid=$(getBlockId "${tgtRootFS}")
 
-   local tgtRootVG=$(alternateEntityName "$(getRootVG)" "${suffix}")
+   local tgtRootVG=$(getAlternateItemName "$(getRootVG)" "${suffix}")
    local tgtRootLV=$(getRootLV)
-
-    removeTextBetweenMarkers "menuentry" "}" "${custcfgfile}"
+   case ${osversion} in
+     3|4|5|6 )
+       ;;
+       *)
+      removeTextBetweenMarkers "menuentry" "}" "${custcfgfile}"
       writeLog "Verification et ajout d'une entrée BOOTALT dans le Grub Menu" "info"
       ${SED} -e "s/KERNELVERSION/${osplateform}/" "${tplfile}" >> "${custcfgfile}"
       ${SED} -i "s/BOOTALTBLKID/${tgtBootblkid}/" "${custcfgfile}"
@@ -115,6 +131,8 @@ function BootAltInitialize(){
       ${SED} -i -e "s/^GRUB_TIMEOUT=.*//g" /etc/default/grub
       ${ECHO} "GRUB_TIMEOUT=10" >> /etc/default/grub
       ${GRUBMKCONFIG} -o /boot/grub2/grub.cfg
+      ;;
+   esac
       ${SYNC};${SYNC};${SYNC}
   fi
 }
@@ -126,9 +144,7 @@ function BootAltExecute(){
     local suffix=${4:-_alt}
     local args=$#
     [[ "${args}" -lt 3 ]]   && writeLog "BootAltExecute a besoin de 4 arguments ";
-    if isAlternate "${srcdisk}"; then
-        local envtypemsg='alterné'; 
-        local envtypealtmsg='nominal'; 
+    if isAlternateEnv "${suffix}"; then
     else
         local envtypemsg='nominal'; 
         local envtypealtmsg='alterné';
@@ -148,10 +164,10 @@ function BootAltExecute(){
       migrateStdFilesystem "${srcdisk}" "${tgtdisk}" "${counter}" "${exeworkspace}"
     done
     local srcrootvg=$(getRootVG)
-    local tgtrootvg=$(alternateEntityName "${srcrootvg}" "${suffix}")
+    local tgtrootvg=$(getAlternateItemName "${srcrootvg}" "${suffix}")
     migratevg "${srcrootvg}" "${tgtrootvg}" "${exeworkspace}"
     for srcvg in $(getDeviceVolumeGroups "${srcdisk}"); do
-      local tgtvg=$(alternateEntityName "${srcvg}" "${suffix}")
+      local tgtvg=$(getAlternateItemName "${srcvg}" "${suffix}")
       [ "${srcvg}" != "${srcrootvg}" ] && migratevg "${srcvg}" "${tgtvg}" "${exeworkspace}"
       ${SYNC};${SYNC};${SYNC}
     done
@@ -166,12 +182,24 @@ function BootAltClose(){
     local suffix=${4:-_alt}
     local args=$#
     [[ "${args}" -lt 3 ]]   && writeLog "BootAltClose a besoin de 4 arguments";       
-    if isAlternate "${srcdisk}"; then
+    if isAlternateEnv "${suffix}"; then
         local envtypemsg='alterné'; 
         local envtypealtmsg='nominal'; 
+        local srcbiosdevname="hd1"
+        local tgtbiosdevname="hd0"
+        local srcbiosdevahci="ahci1"
+        local tgtbiosdevahci="ahci0"
+        local removeBootalt=1
+        local initrdTag="" 
     else
         local envtypemsg='nominal'; 
         local envtypealtmsg='alterné';
+        local srcbiosdevname="hd0"
+        local tgtbiosdevname="hd1"
+        local srcbiosdevahci="ahci0"
+        local tgtbiosdevahci="ahci1"
+        local removeBootalt=0 
+        local initrdTag=".BOOTALT"
     fi
     diskexists "${srcdisk}" || writeLog "Le nom disque systeme ${envtypemsg}: ${srcdisk} est incorrect: $?"
     diskexists "${tgtdisk}" || writeLog "Le disque systeme ${envtypealtmsg}: ${tgtdisk} est introuvable: $?"
@@ -188,18 +216,16 @@ function BootAltClose(){
     local tgtBootFStype=$(getFSType "${tgtBootFS}") 
     local tgtRootFStype=$(getFSType "${tgtRootFS}")   
     local srcrootvg=$(getRootVG)
-    local tgtRootVG=$(alternateEntityName "${srcrootvg}" "${suffix}")
+    local tgtRootVG=$(getAlternateItemName "${srcrootvg}" "${suffix}")
     local custcfgfile=$(getCustGrubConfigFile)
 
     ${MKDIR} -p "${rootwspace}"
-    ${SYNC};${SYNC}
     ${MOUNT} -t ${tgtRootFStype} "${tgtRootFS}"  "${rootwspace}" || writeLog "impossible de monter le FS ${tgtRootFS} :$?"
     ${MKDIR} -p "${bootwspace}"
-    ${SYNC};${SYNC}
     ${MOUNT} -t ${tgtBootFStype} "${tgtBootFS}"  "${bootwspace}" || writeLog "impossible de monter la partition ${tgtBootFS} :$?"
     writeLog "Mise à jour des fichiers de configuration systeme du boot alterné" "info"
     for srcvg in $(getDeviceVolumeGroups "${srcdisk}"); do
-      local tgtvg=$(alternateEntityName "${srcvg}" "${suffix}")
+      local tgtvg=$(getAlternateItemName "${srcvg}" "${suffix}")
       [ "${srcrootvg}" == "${srcvg}" ] && ${SED} -i "s/\/${srcvg}\(\[-\/]\)/\/${tgtvg}\1/g" "${rootwspace}/etc/default/grub"
       ${SED} -i -e "s/\/dev\(\/[^\/]*\/*\)${srcvg}\([-\/]\)\([^-]*\)$/\/dev\\1${tgtvg}\\2\\3/g" "${rootwspace}/etc/fstab"
       for fs in $(getVGFilesystemList "${srcvg}"); do
@@ -220,22 +246,7 @@ function BootAltClose(){
         ${SED} -i "s/${stdfsescaped}/${stdfspartnerescaped}/g" "${rootwspace}/etc/fstab"
     done
     writeLog "Fin de Mise à jour des fichiers de configuration systeme " "info"
-    if isAlternateEnv "${suffix}"; then
-        local srcbiosdevname="hd1"
-        local tgtbiosdevname="hd0"
-        local srcbiosdevahci="ahci1"
-        local tgtbiosdevahci="ahci0"
-        local removeBootalt=1
-        local initrdTag=""         
-    else
-        local srcbiosdevname="hd0"
-        local tgtbiosdevname="hd1"
-        local srcbiosdevahci="ahci0"
-        local tgtbiosdevahci="ahci1"
-        local removeBootalt=0 
-        local initrdTag=".BOOTALT" 
 
-    fi
     local tgtRootFSescaped=$(escapeSlashes "${tgtRootFS}")
     local srcRootFSescaped=$(escapeSlashes "${srcRootFS}")
     ${SED} -i "s/${tgtbiosdevname}/${srcbiosdevname}/Ig" "${rootwspace}${custcfgfile}"
@@ -283,7 +294,8 @@ function BootAltClose(){
     ${UMOUNT} ${rootwspace}
     ${RM} -rf "${Closeworkspace}"
     [ -f /var/run/${PROG}.pid ] && ${RM} -rf "/var/run/${PROG}.pid"
-    writeLog "Fin de la creation du boot alterne" "info"
+    writeLog "FIN D'EXECUTION DU SCRIPT DE CREATION DE BOOT ALTERNE" "info"
+    exit 0
 }
 
 
@@ -291,16 +303,31 @@ function checkPrerequisites(){
     local srcdisk=$(normalizeDeviceName "${1}")
     local tgtdisk=$(normalizeDeviceName "${2}")
     local suffix="${3:-_alt}"
+    local osversion=$(getOSVersion)
     writeLog "VERIFICATION DES PREREQUIS SYSTEMES ET LOGICIELS" "info"
-    if isAlternate "${srcdisk}"; then
+    [[ "${osversion}" -lt 5 ]]   && writeLog "Version OS non pris en chage: ${osversion}";
+    if isAlternateEnv "${suffix}"; then
         local envtypemsg='alterné'; 
-        local envtypealtmsg='nominal'; 
+        local envtypealtmsg='nominal';       
+        local srcbiosdevname="hd1"
+        local tgtbiosdevname="hd0"
+        local srcbiosdevahci="ahci1"
+        local tgtbiosdevahci="ahci0"
+        local removeBootalt=1
+        local initrdTag=""         
     else
         local envtypemsg='nominal'; 
-        local envtypealtmsg='alterné';
+        local envtypealtmsg='alterné';      
+        local srcbiosdevname="hd0"
+        local tgtbiosdevname="hd1"
+        local srcbiosdevahci="ahci0"
+        local tgtbiosdevahci="ahci1"
+        local removeBootalt=0 
+        local initrdTag=".BOOTALT" 
     fi
     diskexists "${srcdisk}" || writeLog "Le disque systeme ${envtypemsg}: ${srcdisk} n'existe pas: $?"
     diskexists "${tgtdisk}" || writeLog "Le disque systeme ${envtypealtmsg}: ${tgtdisk} n'existe pas: $?"
+
     [ "${srcdisk}" != "${tgtdisk}" ] || writeLog "Le disque systeme source et celui de destination sont identiques: $?"
     writeLog "Recherche du disque OS actuel" "info"
     local currentOSdisk=$(getCurrentOSDevice)
@@ -316,13 +343,15 @@ function checkPrerequisites(){
     writeLog "Vérification des contraintes liées à la taille des disques." "info"
     local srcdisksize=$(${SFDISK} -s ${srcdisk} >/dev/null)
     local tgtdisksize=$(${SFDISK} -s ${tgtdisk} >/dev/null)
-    local srcdisksizeGB=$(( (${srcdisksize} + ((1024 * 1024) + 1)) / (1024 * 1024)))
-    local tgtdisksizeGB=$(( (${tgtdisksize} + ((1024 * 1024) + 1)) / (1024 * 1024)))
-    writeLog "CAPACITE DISQUE OS:       ${srcdisksizeGB} GB" "info"
-    writeLog "CAPACITE DISQUE ALTERNE:  ${tgtdisksizeGB} GB" "info"
+    local srcdisksizeGB=$(humanReadableSize ${srcdisksize})
+    local tgtdisksizeGB=$(humanReadableSize ${tgtdisksize})
+    writeLog "CAPACITE DISQUE OS:       ${srcdisksizeGB}" "info"
+    writeLog "CAPACITE DISQUE ALTERNE:  ${tgtdisksizeGB}" "info"
     if numberCompare "${srcdisksize}" ">" "${tgtdisksize}"; then
-       isAlternateEnv || writeLog "La capacite disque ${envtypealtmsg} (${tgtdisk}) ne peut être inférieure à celle du disque ${envtypemsg} (${srcdisk}). Capacite minimale requise : ${srcdisksizeGB} GB)"
+       isAlternateEnv "${suffix}"|| writeLog "La capacite disque ${envtypealtmsg} (${tgtdisk}) ne peut être inférieure à celle du disque ${envtypemsg} (${srcdisk}). Capacite minimale requise : ${srcdisksizeGB})"
     fi
-    writeLog "Prérequis disque ......... OK" "info"
+    writeLog "Vérification des Prérequis disque ......... OK" "info"
     installRequiredPackages "gzip" "bc" "dump" "perl" "cpio"
+   [ $? -eq 0 ] && writeLog "FIN DE VERIFICATION DES PREREQUIS ......... OK" "info"
 }
+

@@ -1,20 +1,46 @@
 #!/usr/bin/env bash
 # Header_start
-#################################################################################
-#                                                                               #
-#       Fichier de Configuration du Script de creation du boot alterné    		#
-# ----------------------------------------------------------------------------- #
-#       Author: Alfred TCHONDJO - Iriven France                                 #
-#       Date: 2018-05-14                                                        #
-# ----------------------------------------------------------------------------- #
-#       Revisions                                                               #
-#                                                                               #
-#       G1R0C0 :        Creation du script le 14/05/2019 (AT)                   #
-#       G1R0C1 :        Update - détection auto des FS le 30/09/2019 (AT)       #
-#                                                                               #
-#################################################################################
+##############################################################################################
+#                                                                                            #
+#  Author:         Alfred TCHONDJO - Iriven France                                           #
+#  Date:           2019-05-14                                                                #
+#  Website:        https://github.com/iriven?tab=repositories                                #
+#                                                                                            #
+# ------------------------------------------------------------------------------------------ #
+#                                                                                            #
+#  Project:        Linux Alternate Boot (BOOTALT)                                            #
+#  Description:	   An advanced tool to create alternate boot environment on Linux servers.   #
+#  Version:        1.0.1    (G1R0C1)                                                         #
+#                                                                                            #
+#  License:        GNU GPLv3                                                                 #
+#                                                                                            #
+#  This program is free software: you can redistribute it and/or modify                      #
+#  it under the terms of the GNU General Public License as published by                      #
+#  the Free Software Foundation, either version 3 of the License, or                         #
+#  (at your option) any later version.                                                       #
+#                                                                                            #
+#  This program is distributed in the hope that it will be useful,                           #
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of                            #
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                             #
+#  GNU General Public License for more details.                                              #
+#                                                                                            #
+#  You should have received a copy of the GNU General Public License                         #
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.                     #
+#                                                                                            #
+# ------------------------------------------------------------------------------------------ #
+#  Revisions                                                                                 #
+#                                                                                            #
+#  - G1R0C0 :        Creation du script le 14/05/2019 (AT)                                   #
+#  - G1R0C1 :        Update - détection auto des FS le 30/09/2019 (AT)                       #
+#                                                                                            #
+##############################################################################################
 # Header_end
 # set -x
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
+then
+  printf "\\n%s is a part of bash Linux Alternate Boot (BOOTALT) project. Dont execute it directly!\\n\\n" "${0##*/}"
+  exit 1
+fi
 #-------------------------------------------------------------------
 #               DECLARATION DES VARIABLES
 #-------------------------------------------------------------------
@@ -73,10 +99,10 @@ case "${BOOTALT_EXECMODE}" in
 esac
 
 if [ "${BOOTALT_EXECMODE}" == "restore" ]; then
-	isAlternateEnv || writeLog "Le mode 'restore' n'est possible que depuis l'Environnement de boot Alterné."
+	isAlternateEnv "${BOOTALT_ITEMSUFFIX}" || writeLog "Le mode 'restore' n'est possible que depuis l'Environnement de boot Alterné."
 	BOOTALT_TEMPDEVICE="${BOOTALT_SOURCEDEVICE}"
 	BOOTALT_SOURCEDEVICE="${BOOTALT_TARGETDEVICE}"
 	BOOTALT_TARGETDEVICE="${BOOTALT_TEMPDEVICE}"
 else
-	isAlternateEnv && writeLog "Le mode 'backup' n'est possible que depuis l'Environnement de boot nominal."
+	isAlternateEnv "${BOOTALT_ITEMSUFFIX}" && writeLog "Le mode 'backup' n'est possible que depuis l'Environnement de boot nominal."
 fi
